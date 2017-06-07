@@ -10,9 +10,9 @@ const fs = require('fs');
 const zlib = require('zlib');
 const path = require('path');
 const crypto = require('crypto');
+const lib = require('think_lib');
 const mime = require('mime-types');
 const compressible = require('compressible');
-const lib = require('think_lib');
 
 const safeDecodeURIComponent = function (text) {
     try {
@@ -109,7 +109,7 @@ module.exports = function (options) {
         });
     }
     /*eslint-disable consistent-return */
-    return async function (ctx, next) {
+    return function * (ctx, next) {
         // only accept HEAD and GET
         if (ctx.method !== 'HEAD' && ctx.method !== 'GET') {
             return next();
@@ -218,7 +218,7 @@ module.exports = function (options) {
                 if (options.usePrecompiledGzip && gzFile && gzFile.buffer) { // if .gz file already read from disk
                     file.zipBuffer = gzFile.buffer;
                 } else {
-                    file.zipBuffer = await zlib.gzip(file.buffer);
+                    file.zipBuffer = yield zlib.gzip(file.buffer);
                 }
                 ctx.set('content-encoding', 'gzip');
                 ctx.body = file.zipBuffer;
