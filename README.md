@@ -16,11 +16,10 @@ npm i think_static
 # 使用
 -----
 
-1、static中间件为thinkkoa内置中间件,无需在项目中创建引用。设置中间件配置即可开启
+1、static中间件为thinkkoa内置中间件,无需在项目中创建引用。该中间件默认开启
 
 2、项目中间件配置 config/middleware.js:
 ```
-list: [...,'static'], //加载的中间件列表
 config: { //中间件配置
     ...,
     static: {//静态资源,如果配置了Nginx代理,请设置为 static: false
