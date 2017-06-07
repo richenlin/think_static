@@ -16,10 +16,7 @@ npm i think_static
 # 使用
 -----
 
-1、项目中增加中间件 middleware/static.js
-```
-module.exports = require('think_static');
-```
+1、static中间件为thinkkoa内置中间件,无需在项目中创建引用。设置中间件配置即可开启
 
 2、项目中间件配置 config/middleware.js:
 ```
