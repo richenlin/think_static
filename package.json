@@ -1,13 +1,15 @@
 {
   "name": "think_static",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Static cache for ThinkKoa.",
-  "main": "index.js",
+  "main": "./lib/index.js",
   "scripts": {
     "test": "npm run eslint",
     "test-cov": "istanbul cover ./node_modules/mocha/bin/_mocha -- -t 50000 --recursive  -R spec test/",
-    "prepublish": "npm test",
-    "eslint": "eslint index.js"
+    "compile": "babel src -d lib",
+    "watch-compile": "npm run compile -- --watch",
+    "prepublish": "npm run compile && npm test",
+    "eslint": "eslint src"
   },
   "engines": {
     "node": ">6.0.0"
@@ -15,13 +17,17 @@
   "author": "richenlin",
   "license": "MIT",
   "devDependencies": {
+    "babel-cli": "^6.22.2",
     "babel-core": "^6.22.1",
     "babel-eslint": "^7.1.1",
+    "babel-plugin-transform-runtime": "^6.22.0",
+    "babel-preset-env": "^1.1.8",
     "eslint": "^3.15.0",
     "istanbul": "^0.4.5",
     "mocha": "^3.2.0"
   },
   "dependencies": {
+    "babel-runtime": "6.22.0",
     "compressible": "^2.0.10",
     "mime-types": "^2.1.15",
     "think_lib": "^1.x.x"
