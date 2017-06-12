@@ -74,7 +74,7 @@ module.exports = function (options) {
     options.prefix = (options.prefix || '').replace(/\/*$/, '/');
     // custom files list
     let files = options.files || Object.create(null);
-    let filePrefix = path.normalize(options.prefix.replace(/^\//, ''));
+    let filePrefix = path.normalize(options.prefix);
 
     // option.filter
     let fileFilter = function () {
@@ -129,32 +129,24 @@ module.exports = function (options) {
         // normalize for `//index`
         let filename = '';
         try {
-            filename = path.normalize(safeDecodeURIComponent(path.normalize(ctx.path)).replace(/\\/g, '/'));
+            filename = path.normalize(safeDecodeURIComponent(path.normalize(ctx.path)));
         } catch (e) {
             return next();
         }
-        // check prefix first to avoid calculate
-        if (filename.indexOf(options.prefix) !== 0) {
-            return next();
-        }
-
+        
         let file = files[filename];
         // try to load file
         if (!file) {
             if (path.basename(filename)[0] === '.') {
                 return next();
             }
-            if (filename.charAt(0) === path.sep) {
-                filename = filename.slice(1);
+            // check prefix first to avoid calculate
+            if (filename.indexOf(filePrefix) !== 0) {
+                return next();
             }
             // trim prefix
-            if (options.prefix !== '/') {
-                if (filename.indexOf(filePrefix) !== 0) {
-                    return next();
-                }
-                filename = filename.slice(filePrefix.length);
-            }
-
+            filename = filename.slice(filePrefix.length);
+            
             let s;
             try {
                 s = fs.statSync(path.join(dir, filename));
