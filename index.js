@@ -182,7 +182,7 @@ module.exports = function (options) {
             return;
         }
 
-        ctx.type = file.type;
+        ctx.set('content-type', file.type);
         ctx.length = file.zipBuffer ? file.zipBuffer.length : file.length;
         ctx.set('cache-control', 'public, max-age=' + file.maxAge);
         if (file.md5) {
