@@ -109,7 +109,7 @@ module.exports = function (options) {
         });
     }
     /*eslint-disable consistent-return */
-    return function * (ctx, next) {
+    return function* (ctx, next) {
         // only accept HEAD and GET
         if (ctx.method !== 'HEAD' && ctx.method !== 'GET') {
             return next();
@@ -133,8 +133,9 @@ module.exports = function (options) {
         } catch (e) {
             return next();
         }
-        
-        let file = files[filename];
+
+        let file;
+        options.cache && (file = files[filename]);
         // try to load file
         if (!file) {
             if (path.basename(filename)[0] === '.') {
@@ -146,7 +147,7 @@ module.exports = function (options) {
             }
             // trim prefix
             filename = filename.slice(filePrefix.length);
-            
+
             let s;
             try {
                 s = fs.statSync(path.join(dir, filename));
@@ -174,12 +175,14 @@ module.exports = function (options) {
         }
         // 304
         ctx.response.lastModified = file.mtime;
-        if (file.md5) {
-            ctx.response.etag = file.md5;
-        }
-        if (ctx.fresh) {
-            ctx.status = 304;
-            return;
+        if (options.cache) {
+            if (file.md5) {
+                ctx.response.etag = file.md5;
+            }
+            if (ctx.fresh) {
+                ctx.status = 304;
+                return;
+            }
         }
 
         ctx.set('content-type', file.type);
