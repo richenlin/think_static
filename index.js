@@ -173,7 +173,9 @@ module.exports = function (options) {
                 file.length = stats.size;
             }
         }
-        // 304
+
+        
+        // 304 
         ctx.response.lastModified = file.mtime;
         if (options.cache) {
             if (file.md5) {
@@ -183,11 +185,15 @@ module.exports = function (options) {
                 ctx.status = 304;
                 return;
             }
+            ctx.set('cache-control', 'public, max-age=' + file.maxAge);
+        } else {
+            ctx.set('cache-control', 'no-cache');
         }
 
         ctx.set('content-type', file.type);
         ctx.length = file.zipBuffer ? file.zipBuffer.length : file.length;
-        ctx.set('cache-control', 'public, max-age=' + file.maxAge);
+
+        //md5
         if (file.md5) {
             ctx.set('content-md5', file.md5);
         }
