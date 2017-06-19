@@ -55,20 +55,22 @@ const loadFile = function (name, dir, option, files) {
 };
 
 /**
- * options = {
- *    prefix: '/static',
- *    gzip: true,
- *    filter: [Function],
- *    maxAge: 30,
- *    buffer: ...,
- *    alias: {key: value}, 
- *    preload: false
- * }
- * @param {any} options 
- * @returns 
+ * default options
  */
+const defaultOptions = {
+    dir: '/static', //resource path
+    prefix: '/', //resource prefix 
+    gzip: true, //enable gzip
+    filter: null, //function or array['jpg', 'gif']
+    maxAge: 3600 * 24, //cache maxAge seconds
+    buffer: false, //enable buffer
+    alias: {},  //alias files {key: path}
+    preload: false, //preload files
+    cache: true //resource cache
+};
+
 module.exports = function (options) {
-    options = options || {};
+    options = options ? lib.extend(defaultOptions, options, true) : defaultOptions;
 
     // prefix must be ASCII code
     options.prefix = (options.prefix || '').replace(/\/*$/, '/');
@@ -174,7 +176,7 @@ module.exports = function (options) {
             }
         }
 
-        
+
         // 304 
         ctx.response.lastModified = file.mtime;
         if (options.cache) {
