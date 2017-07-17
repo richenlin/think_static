@@ -71,7 +71,13 @@ const defaultOptions = {
 
 module.exports = function (options) {
     options = options ? lib.extend(defaultOptions, options, true) : defaultOptions;
-
+    // static path
+    if (options.dir === '/') {
+        throw Error(`The static file directory cannot be '/'`);
+        return;
+    }
+    const dir = options.dir ? path.normalize(`${think.root_path}${options.dir}`) : path.normalize(`${think.root_path}/static`);
+    
     // prefix must be ASCII code
     options.prefix = (options.prefix || '').replace(/\/*$/, '/');
     // custom files list
@@ -90,9 +96,7 @@ module.exports = function (options) {
             return ~options.filter.indexOf(file);
         };
     }
-    // static path
-    const dir = options.dir ? path.normalize(`${think.root_path}${options.dir}`) : path.normalize(`${think.root_path}/static`);
-
+    
     // preload files
     if (options.preload !== false) {
         think.app.once('appReady', () => {
@@ -175,7 +179,6 @@ module.exports = function (options) {
                 file.length = stats.size;
             }
         }
-
 
         // 304 
         ctx.response.lastModified = file.mtime;
