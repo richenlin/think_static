@@ -13,7 +13,12 @@ const crypto = require('crypto');
 const lib = require('think_lib');
 const mime = require('mime-types');
 const compressible = require('compressible');
-
+/**
+ * 
+ * 
+ * @param {any} text 
+ * @returns 
+ */
 const safeDecodeURIComponent = function (text) {
     try {
         return decodeURIComponent(text);
@@ -32,7 +37,6 @@ const safeDecodeURIComponent = function (text) {
  * @return {Object}
  * @api private
  */
-
 const loadFile = function (name, dir, option, files) {
     let pathname = path.normalize(path.join(option.prefix, name));
     let obj = files[pathname] = files[pathname] ? files[pathname] : {};
@@ -62,7 +66,7 @@ const defaultOptions = {
     prefix: '/', //resource prefix 
     gzip: true, //enable gzip
     filter: null, //function or array['jpg', 'gif']
-    maxAge: 3600 * 24, //cache maxAge seconds
+    maxAge: 3600 * 24 * 7, //cache maxAge seconds
     buffer: false, //enable buffer
     alias: {},  //alias files {key: path}
     preload: false, //preload files

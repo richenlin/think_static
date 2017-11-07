@@ -27,7 +27,7 @@ config: { //中间件配置
         prefix: '/', //resource prefix 
         gzip: true, //enable gzip
         filter: null, //function or array['jpg', 'gif']
-        maxAge: 3600 * 24, //cache maxAge seconds
+        maxAge: 3600 * 24 * 7, //cache maxAge seconds
         buffer: false, //enable buffer
         alias: {},  //alias files {key: path}
         preload: false, //preload files
