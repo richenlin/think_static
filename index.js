@@ -73,7 +73,7 @@ const defaultOptions = {
     cache: true //resource cache
 };
 
-module.exports = function (options) {
+module.exports = function (options, app) {
     options = options ? lib.extend(defaultOptions, options, true) : defaultOptions;
     // static path
     if (options.dir === '/') {
@@ -103,7 +103,8 @@ module.exports = function (options) {
     
     // preload files
     if (options.preload !== false) {
-        think.app.once('appReady', () => {
+        let koa = global.think ? (think.app || {}) : (app.koa || {});
+        koa.once('appReady', () => {
             lib.readDir(dir).filter(fileFilter).forEach(function (name) {
                 loadFile(name, dir, options, files);
             });
