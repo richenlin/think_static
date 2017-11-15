@@ -1,6 +1,6 @@
 {
   "name": "think_static",
-  "version": "1.0.10",
+  "version": "1.2.0",
   "description": "Static cache for ThinkKoa.",
   "main": "index.js",
   "scripts": {
