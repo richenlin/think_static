@@ -80,7 +80,7 @@ module.exports = function (options, app) {
         throw Error(`The static file directory cannot be '/'`);
         return;
     }
-    const dir = options.dir ? path.normalize(`${think.root_path}${options.dir}`) : path.normalize(`${think.root_path}/static`);
+    const dir = options.dir ? path.normalize(`${app.root_path}${options.dir}`) : path.normalize(`${app.root_path}/static`);
     
     // prefix must be ASCII code
     options.prefix = (options.prefix || '').replace(/\/*$/, '/');
@@ -103,8 +103,7 @@ module.exports = function (options, app) {
     
     // preload files
     if (options.preload !== false) {
-        let koa = global.think ? (think.app || {}) : (app.koa || {});
-        koa.once('appReady', () => {
+        app.once('appReady', () => {
             lib.readDir(dir).filter(fileFilter).forEach(function (name) {
                 loadFile(name, dir, options, files);
             });
