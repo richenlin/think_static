@@ -26,12 +26,11 @@ config: { //中间件配置
         dir: '/static', //resource path
         prefix: '/', //resource prefix 
         gzip: true, //enable gzip
-        filter: null, //function or array['jpg', 'gif']
+        filter: [], //function or (not in)array['.exe', '.zip']
         maxAge: 3600 * 24 * 7, //cache maxAge seconds
-        buffer: false, //enable buffer
-        alias: {},  //alias files {key: path}
-        preload: false, //preload files
-        cache: true //files cache
+        alias: {},  //resource path file alias {key: path}
+        preload: true, //preload files
+        cache: true //resource cache
     }
 }
 ```

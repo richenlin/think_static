@@ -42,19 +42,12 @@ const loadFile = function (name, dir, option, files) {
     let obj = files[pathname] = files[pathname] ? files[pathname] : {};
     let filename = obj.path = path.join(dir, name);
     let stats = fs.statSync(filename);
-    let buffer = fs.readFileSync(filename);
 
     obj.maxAge = obj.maxAge ? obj.maxAge : option.maxAge || 0;
     obj.type = obj.mime = mime.lookup(pathname) || 'application/octet-stream';
     obj.mtime = stats.mtime;
     obj.length = stats.size;
-    obj.md5 = crypto.createHash('md5').update(buffer).digest('base64');
-
-    if (option.buffer) {
-        obj.buffer = buffer;
-    }
-
-    buffer = null;
+    obj.md5 = crypto.createHash('md5').update(filename).digest('base64');
     return obj;
 };
 
@@ -65,27 +58,26 @@ const defaultOptions = {
     dir: '/static', //resource path
     prefix: '/', //resource prefix 
     gzip: true, //enable gzip
-    filter: null, //function or array['jpg', 'gif']
+    filter: [], //function or (not in)array['.exe', '.zip']
     maxAge: 3600 * 24 * 7, //cache maxAge seconds
-    buffer: false, //enable buffer
-    alias: {},  //alias files {key: path}
-    preload: false, //preload files
+    alias: {},  //resource path file alias {key: path}
+    preload: true, //preload files
     cache: true //resource cache
 };
+// custom files list
+const __files = Object.create(null);
 
 module.exports = function (options, app) {
     options = options ? lib.extend(defaultOptions, options, true) : defaultOptions;
+
     // static path
     if (options.dir === '/') {
-        throw Error(`The static file directory cannot be '/'`);
-        return;
+        options.dir = '/static';
     }
     const dir = options.dir ? path.normalize(`${app.root_path}${options.dir}`) : path.normalize(`${app.root_path}/static`);
-    
+
     // prefix must be ASCII code
     options.prefix = (options.prefix || '').replace(/\/*$/, '/');
-    // custom files list
-    let files = options.files || Object.create(null);
     let filePrefix = path.normalize(options.prefix);
 
     // option.filter
@@ -94,32 +86,29 @@ module.exports = function (options, app) {
     };
     if (typeof options.filter === 'function') {
         fileFilter = options.filter;
-    }
-    if (Array.isArray(options.filter)) {
+    } else if (Array.isArray(options.filter)) {
         fileFilter = function (file) {
-            return ~options.filter.indexOf(file);
+            return options.filter.indexOf(path.extname(file)) === -1;
         };
     }
-    
+
     // preload files
-    if (options.preload !== false) {
+    if (options.preload) {
         app.once('appReady', () => {
-            lib.readDir(dir).filter(fileFilter).forEach(function (name) {
-                loadFile(name, dir, options, files);
-            });
+            lib.readDir(dir).filter(fileFilter).map(name => loadFile(name, dir, options, __files));
         });
     }
     // alias files
     if (options.alias) {
-        Object.keys(options.alias).forEach(function (key) {
+        Object.keys(options.alias).map(key => {
             let value = options.alias[key];
-            if (files[value]) {
-                files[key] = files[value];
+            if (__files[value]) {
+                __files[key] = __files[value];
             }
         });
     }
     /*eslint-disable consistent-return */
-    return function* (ctx, next) {
+    return function (ctx, next) {
         // only accept HEAD and GET
         if (ctx.method !== 'HEAD' && ctx.method !== 'GET') {
             return next();
@@ -145,7 +134,10 @@ module.exports = function (options, app) {
         }
 
         let file;
-        options.cache && (file = files[filename]);
+        if (options.cache) {
+            file = __files[filename];
+        }
+
         // try to load file
         if (!file) {
             if (path.basename(filename)[0] === '.') {
@@ -167,21 +159,17 @@ module.exports = function (options, app) {
             if (!s.isFile()) {
                 return next();
             }
-            file = loadFile(filename, dir, options, files);
+            // filter
+            if ([filename].filter(fileFilter).length) {
+                file = loadFile(filename, dir, options, __files);
+            } else {
+                return next();
+            }
         }
 
         ctx.status = 200;
         if (options.gzip) {
             ctx.vary('Accept-Encoding');
-        }
-        // statss
-        if (!file.buffer) {
-            let stats = fs.statSync(file.path);
-            if (stats.mtime > file.mtime) {
-                file.mtime = stats.mtime;
-                file.md5 = null;
-                file.length = stats.size;
-            }
         }
 
         // 304 
@@ -201,58 +189,20 @@ module.exports = function (options, app) {
 
         ctx.set('content-type', file.type);
         ctx.length = file.zipBuffer ? file.zipBuffer.length : file.length;
-
-        //md5
-        if (file.md5) {
-            ctx.set('content-md5', file.md5);
-        }
+        file.md5 && ctx.set('content-md5', file.md5);
         if (ctx.method === 'HEAD') {
             return;
         }
 
-        let acceptGzip = ctx.acceptsEncodings('gzip') === 'gzip';
-        if (file.zipBuffer) {
-            if (acceptGzip) {
-                ctx.set('content-encoding', 'gzip');
-                ctx.body = file.zipBuffer;
-            } else {
-                ctx.body = file.buffer;
-            }
-            return;
-        }
-
-        let shouldGzip = options.gzip && file.length > 1024 && acceptGzip && compressible(file.type);
-        if (file.buffer) {
-            if (shouldGzip) {
-                let gzFile = files[filename + '.gz'];
-                if (options.usePrecompiledGzip && gzFile && gzFile.buffer) { // if .gz file already read from disk
-                    file.zipBuffer = gzFile.buffer;
-                } else {
-                    file.zipBuffer = yield zlib.gzip(file.buffer);
-                }
-                ctx.set('content-encoding', 'gzip');
-                ctx.body = file.zipBuffer;
-            } else {
-                ctx.body = file.buffer;
-            }
-            return;
-        }
-
         let stream = fs.createReadStream(file.path);
-        // update file hash
-        if (!file.md5) {
-            let hash = crypto.createHash('md5');
-            stream.on('data', hash.update.bind(hash));
-            stream.on('end', function () {
-                file.md5 = hash.digest('base64');
-            });
-        }
-        ctx.body = stream;
         // enable gzip will remove content length
-        if (shouldGzip) {
+        if (options.gzip && file.length > 1024 && ctx.acceptsEncodings('gzip') === 'gzip' && compressible(file.type)) {
             ctx.remove('content-length');
             ctx.set('content-encoding', 'gzip');
             ctx.body = stream.pipe(zlib.createGzip());
+        } else {
+            ctx.body = stream;
         }
+        return;
     };
 };
