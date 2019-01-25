@@ -149,15 +149,16 @@ module.exports = function (options, app) {
             }
             // trim prefix
             filename = filename.slice(filePrefix.length);
-
-            let s;
+            
             try {
-                s = fs.statSync(path.join(dir, filename));
+                let s = fs.accessSync(path.join(dir, filename));
             } catch (err) {
-                return next();
-            }
-            if (!s.isFile()) {
-                return next();
+                if (filename === 'favicon.ico'){
+                    ctx.status = 404;
+                    return;
+                } else {
+                    return next();
+                }
             }
             // filter
             if ([filename].filter(fileFilter).length) {
