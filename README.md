@@ -2,9 +2,8 @@
 -----
 
 [![npm version](https://badge.fury.io/js/think_static.svg)](https://badge.fury.io/js/think_static)
-[![Dependency Status](https://david-dm.org/thinkkoa/think_static.svg)](https://david-dm.org/thinkkoa/think_static)
 
-Static cache for ThinkKoa
+Static server Middleware for ThinkKoa.
 
 # 安装
 -----

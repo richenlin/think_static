@@ -60,7 +60,7 @@ const defaultOptions = {
     gzip: true, //enable gzip
     filter: [], //function or (not in)array['.exe', '.zip']
     maxAge: 3600 * 24 * 7, //cache maxAge seconds
-    alias: {},  //resource path file alias {key: path}
+    alias: {}, //resource path file alias {key: path}
     preload: true, //preload files
     cache: true //resource cache
 };
@@ -149,11 +149,11 @@ module.exports = function (options, app) {
             }
             // trim prefix
             filename = filename.slice(filePrefix.length);
-            
+
             try {
                 let s = fs.accessSync(path.join(dir, filename));
             } catch (err) {
-                if (filename === 'favicon.ico'){
+                if (filename === 'favicon.ico') {
                     ctx.status = 404;
                     return;
                 } else {
