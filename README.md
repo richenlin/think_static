@@ -21,15 +21,14 @@ npm i think_static
 ```
 config: { //中间件配置
     ...,
-    static: {//静态资源,如果配置了Nginx代理,请设置为 static: false
+    //静态资源,如果配置了Nginx代理,请设置为 static: false
+    static: {
         dir: '/static', //resource path
         prefix: '/', //resource prefix 
         gzip: true, //enable gzip
         filter: [], //function or (not in)array['.exe', '.zip']
-        maxAge: 3600 * 24 * 7, //cache maxAge seconds
-        alias: {},  //resource path file alias {key: path}
-        preload: true, //preload files
-        cache: true //resource cache
+        maxAge: 3600 * 24 * 7, //cache-control maxAge seconds
+        cache: false //cache-control
     }
 }
 ```
