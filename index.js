@@ -5,222 +5,48 @@
  * @license    MIT
  * @version    17/5/2
  */
-
-const fs = require('fs');
-const zlib = require('zlib');
 const path = require('path');
-const crypto = require('crypto');
 const lib = require('think_lib');
-const mime = require('mime-types');
-const compressible = require('compressible');
+const LRU = require('lru-cache');
+const static = require('koa-static-cache');
 
-// files cache list
-const __files = Object.create(null);
-
-/**
- * load file and add file content to cache
- *
- * @param {String} name
- * @param {String} dir
- * @param {Object} option
- * @param {Object} files
- * @return {Object}
- * @api private
- */
-const loadFile = function (name, dir, option, files) {
-    const obj = {};
-    const pathname = path.normalize(path.join(option.prefix, name));
-    const filename = obj.path = path.join(dir, name);
-
-    const def = lib.getDefer();
-    fs.stat(filename, function (err, stats) {
-        if (err) {
-            def.reject(err);
-        } else {
-            obj.maxAge = obj.maxAge ? obj.maxAge : option.maxAge || 0;
-            obj.type = obj.mime = mime.lookup(pathname) || 'application/octet-stream';
-            obj.mtime = stats.mtime;
-            obj.length = stats.size;
-            obj.md5 = crypto.createHash('md5').update(filename).digest('base64');
-            if (option.cache) {
-                files[pathname] = obj;
-            }
-            def.resolve(obj);
-        }
-    });
-
-    return def.promise;
-};
-
-/**
- *
- *
- * @param {*} ctx
- * @param {*} options
- * @returns
- */
-const preParse = async function (ctx, options) {
-    // decode for `/%E4%B8%AD%E6%96%87`
-    // normalize for `../../index`
-    let filename = '';
-    try {
-        filename = path.normalize(decodeURIComponent(path.normalize(ctx.path)));
-    } catch (e) {
-        return undefined;
-    }
-
-    let file;
-    if (options.cache) {
-        file = __files[filename];
-    }
-
-    // try to load file
-    if (!file) {
-        if (path.basename(filename)[0] === '.') {
-            return null;
-        }
-        // check prefix first to avoid calculate
-        if (filename.indexOf(options.filePrefix) !== 0) {
-            return undefined;
-        }
-        // trim prefix
-        filename = filename.slice(options.filePrefix.length);
-
-        try {
-            // filter
-            if ([filename].filter(options.fileFilter).length) {
-                file = await loadFile(filename, options.dir, options, __files);
-            } else {
-                return null;
-            }
-        } catch (err) {
-            if (filename === 'favicon.ico') {
-                return null;
-            } else {
-                return undefined;
-            }
-        }
-    }
-    return file;
-};
-
-/**
- *
- *
- * @param {*} file
- * @param {*} ctx
- * @param {*} options
- * @returns
- */
-const responseFile = function (file, ctx, options) {
-    if (!file) {
-        ctx.status = 404;
-        return;
-    }
-    ctx.status = 200;
-    if (options.gzip) {
-        ctx.vary('Accept-Encoding');
-    }
-
-    // 304 
-    ctx.response.lastModified = file.mtime;
-    if (options.maxAge > 0) {
-        if (file.md5) {
-            ctx.response.etag = file.md5;
-        }
-        if (ctx.fresh) {
-            ctx.status = 304;
-            return;
-        }
-        ctx.set('cache-control', 'public, max-age=' + file.maxAge);
-    } else {
-        ctx.set('cache-control', 'no-cache');
-    }
-
-    ctx.set('content-type', file.type);
-    ctx.length = file.zipBuffer ? file.zipBuffer.length : file.length;
-    file.md5 && ctx.set('content-md5', file.md5);
-    if (ctx.method === 'HEAD') {
-        return;
-    }
-
-    const stream = fs.createReadStream(file.path);
-    // enable gzip will remove content length
-    if (options.gzip && ctx.acceptsEncodings('gzip') === 'gzip' && compressible(file.type)) {
-        ctx.remove('content-length');
-        ctx.set('content-encoding', 'gzip');
-        ctx.body = stream.pipe(zlib.createGzip());
-    } else {
-        ctx.body = stream;
-    }
-    return;
-};
+const files = new LRU({ max: 1000 });
 
 /**
  * default options
  */
 const defaultOptions = {
-    dir: '/static', //resource path
-    prefix: '/', //resource prefix 
-    gzip: true, //enable gzip
-    filter: [], //function or (not in)array['.exe', '.zip']
-    maxAge: 3600 * 24 * 7, //cache-control maxAge seconds
-    cache: false //cache-control
+    dir: '/static', // resource path
+    prefix: '', // the url prefix you wish to add, default to ''
+    alias: {}, // object map of aliases. See below
+    gzip: true, // when request's accept-encoding include gzip, files will compressed by gzip.
+    usePrecompiledGzip: false, // try use gzip files, loaded from disk, like nginx gzip_static
+    buffer: false, // store the files in memory instead of streaming from the filesystem on each request
+    filter: [], // (function | array) - filter files at init dir, for example - skip non build (source) files. If array set - allow only listed files
+    maxAge: 3600 * 24 * 7, // cache control max age for the files, 0 by default.
+    preload: false, // caches the assets on initialization or not, default to true. always work together with options.dynamic.
+    cache: false // dynamic load file which not cached on initialization.
 };
-
 
 module.exports = function (options, app) {
     options = options ? lib.extend(defaultOptions, options, true) : defaultOptions;
 
     // static path
-    if (options.dir === '/') {
+    if (options.dir === '/' || options.dir === '') {
         options.dir = '/static';
     }
-    options.dir = options.dir ? path.normalize(`${app.root_path}${options.dir}`) : path.normalize(`${app.root_path}/static`);
-
-    // prefix must be ASCII code
-    options.prefix = (options.prefix || '').replace(/\/*$/, '/');
-    options.filePrefix = path.normalize(options.prefix);
-
-    // option.filter
-    options.fileFilter = function () {
-        return true;
-    };
-    if (typeof options.filter === 'function') {
-        options.fileFilter = options.filter;
-    } else if (Array.isArray(options.filter)) {
-        options.fileFilter = function (file) {
-            return options.filter.indexOf(path.extname(file)) === -1;
-        };
-    }
-
     /*eslint-disable consistent-return */
-    return function (ctx, next) {
-        // only accept HEAD and GET
-        if (ctx.method !== 'HEAD' && ctx.method !== 'GET') {
-            return next();
-        }
-
-        const pathname = ctx.path;
-        // ctx.path must be defined
-        if (!pathname || pathname === '/') {
-            return next();
-        }
-        // regexp
-        if (!/[^\/]+\.+\w+$/.test(pathname)) {
-            return next();
-        }
-
-        // response
-        return preParse(ctx, options).then(res => {
-            if (res === undefined) {
-                return next();
-            } else if (res === null) {
-                ctx.status = 404;
-                return;
-            } else {
-                return responseFile(res, ctx, options);
-            }
-        });
-    };
+    return static({
+        dir: path.join(app.rootPath || process.env.ROOT_PATH || '', options.dir),
+        prefix: options.prefix,
+        alias: options.alias,
+        gzip: options.gzip,
+        usePrecompiledGzip: options.usePrecompiledGzip,
+        buffer: options.buffer,
+        filter: options.filter,
+        dynamic: options.cache,
+        maxAge: options.maxAge,
+        preload: options.preload,
+        files: files
+    });
 };

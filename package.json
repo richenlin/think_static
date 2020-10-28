@@ -1,6 +1,6 @@
 {
   "name": "think_static",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "Static server for ThinkKoa.",
   "main": "index.js",
   "scripts": {
@@ -22,8 +22,8 @@
     "eslint": "^6.8.0"
   },
   "dependencies": {
-    "compressible": "^2.0.18",
-    "mime-types": "^2.1.27",
+    "koa-static-cache": "^5.1.4",
+    "lru-cache": "^6.0.0",
     "think_lib": "^2.x.x"
   }
 }
